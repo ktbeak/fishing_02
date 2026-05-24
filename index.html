@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>음악 퀴즈 아케이드 낚시 게임 | Music Quiz Fishing</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Bubble Canvas -->
+  <canvas id="bubble-canvas"></canvas>
+
+  <div class="app-container">
+    <!-- ==================== 1. LOBBY SCREEN ==================== -->
+    <section id="lobby-screen" class="screen active">
+      <div class="lobby-content glass-panel">
+        <div class="logo-area">
+          <div class="pulse-ring"></div>
+          <i class="fa-solid fa-ship logo-icon"></i>
+        </div>
+        <h1 class="game-title">
+          <span class="highlight">MUSIC QUIZ</span>
+          <span class="sub-highlight">ARCADE FISHING</span>
+        </h1>
+        <p class="game-subtitle">
+          중학교 1학년 수준의 음악 상식을 뽐내고,<br>
+          제한 시간 2분 내에 배를 몰아 10마리의 물고기를 낚아 심해를 탈출하세요!
+        </p>
+
+        <!-- Tutorial Panel -->
+        <div class="tutorial-box">
+          <h3><i class="fa-solid fa-circle-info"></i> 게임 방법</h3>
+          <ul>
+            <li><i class="fa-solid fa-arrows-left-right"></i> <strong>배 이동</strong>: 키보드 좌우 방향키(`◀`, `▶`) 또는 하단의 화면 버튼을 눌러 배를 운전합니다.</li>
+            <li><i class="fa-solid fa-anchor"></i> <strong>갈고리 내리기</strong>: 스페이스바, 아래 방향키(`▼`) 또는 하단의 "낚싯줄 내리기" 버튼을 눌러 갈고리를 내립니다.</li>
+            <li><i class="fa-solid fa-music"></i> <strong>물고기 접촉 & 퀴즈</strong>: 헤엄치는 네온 물고기를 갈고리로 맞추면 일시정지되며 퀴즈 카드가 뜹니다.</li>
+            <li><i class="fa-solid fa-hourglass-half"></i> <strong>탈출 성공</strong>: 120초 이내에 <strong>10마리</strong>를 낚아 탈출하면 남은 시간에 비례해 고득점 획득!</li>
+          </ul>
+        </div>
+
+        <div class="lobby-actions">
+          <button id="btn-start" class="btn btn-primary btn-glow">
+            <i class="fa-solid fa-play"></i> 게임 시작하기
+          </button>
+          <button id="btn-show-rankings" class="btn btn-secondary">
+            <i class="fa-solid fa-trophy"></i> 랭킹 대시보드
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 2. GAME PLAY SCREEN ==================== -->
+    <section id="game-screen" class="screen">
+      <!-- Status Top Bar -->
+      <div class="status-bar glass-panel">
+        <div class="status-item timer-box">
+          <span class="label"><i class="fa-regular fa-clock"></i> 남은 시간</span>
+          <div class="timer-progress-container">
+            <div id="timer-bar" class="timer-progress"></div>
+          </div>
+          <span id="timer-text" class="value number">120.0s</span>
+        </div>
+        
+        <div class="status-item score-box">
+          <span class="label"><i class="fa-solid fa-circle-dollar-to-slot"></i> 점수</span>
+          <span id="score-text" class="value number neon-text-blue">0</span>
+        </div>
+
+        <div class="status-item count-box">
+          <span class="label"><i class="fa-solid fa-bucket"></i> 낚은 물고기</span>
+          <span id="caught-count" class="value number neon-text-green">0 / 10</span>
+        </div>
+      </div>
+
+      <!-- Main Game Board -->
+      <div class="game-board arcade-layout">
+        <!-- Left Column: Dynamic 2D Arcade Fishing Zone -->
+        <div class="fishing-zone glass-panel">
+          <div class="zone-header">
+            <h2><i class="fa-solid fa-ship"></i> 2D 아케이드 낚시터</h2>
+            <span id="fishing-status" class="status-badge">조종 중</span>
+          </div>
+
+          <!-- Extended Arcade Ocean Container -->
+          <div class="ocean-container arcade-mode" id="ocean-area">
+            <!-- 60FPS Game Canvas -->
+            <canvas id="game-canvas"></canvas>
+            
+            <!-- Shaking HIT Overlay -->
+            <div id="hit-alert" class="hit-alert-box hidden">
+              <span class="hit-text">H I T !</span>
+              <span class="hit-sub">퀴즈에 응답하세요!</span>
+            </div>
+          </div>
+
+          <!-- On-screen Virtual Controller Pad -->
+          <div class="virtual-controller-pad">
+            <button id="ctrl-left" class="ctrl-btn"><i class="fa-solid fa-arrow-left"></i></button>
+            <button id="ctrl-down" class="ctrl-btn btn-down"><i class="fa-solid fa-anchor"></i> 낚싯줄 내리기 (Down/Space)</button>
+            <button id="ctrl-right" class="ctrl-btn"><i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </div>
+
+        <!-- Right Column: My Live Fish Tank -->
+        <div class="tank-zone glass-panel">
+          <div class="zone-header">
+            <h2><i class="fa-solid fa-warehouse"></i> 나의 수조 (Catch)</h2>
+            <span id="fish-tank-count" class="status-badge count-badge">0마리</span>
+          </div>
+          <div class="fish-tank-list" id="fish-tank-list">
+            <div class="empty-tank-msg">
+              <i class="fa-solid fa-fish"></i>
+              <p>아직 잡은 물고기가 없습니다.<br>헤엄치는 물고기를 갈고리로 맞춰 수조를 채우세요!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quiz Modal Popup overlay -->
+      <div id="quiz-modal" class="modal-overlay hidden">
+        <div class="quiz-card glass-panel animate-zoom">
+          <div class="quiz-header">
+            <div class="quiz-badge"><i class="fa-solid fa-music"></i> 음악 퀴즈</div>
+            <div class="quiz-fish-type" id="quiz-fish-name">💡 영리한 연어</div>
+          </div>
+          
+          <div class="quiz-body">
+            <h3 id="quiz-question-text" class="question-text">
+              여기에 음악 퀴즈 질문이 들어갑니다.
+            </h3>
+            
+            <div class="quiz-options" id="quiz-options-container">
+              <!-- Option buttons loaded dynamically -->
+              <button class="option-btn">보기 1</button>
+              <button class="option-btn">보기 2</button>
+              <button class="option-btn">보기 3</button>
+              <button class="option-btn">보기 4</button>
+            </div>
+
+            <!-- Feedback Alert (Correct/Incorrect) -->
+            <div id="quiz-feedback" class="feedback-panel hidden">
+              <div class="feedback-result">
+                <i class="fa-solid fa-circle-check feedback-icon"></i>
+                <span class="feedback-msg">정답입니다!</span>
+              </div>
+              <p id="quiz-explanation" class="feedback-explanation">
+                이곳에 정답에 대한 친절한 설명이 들어갑니다.
+              </p>
+              <button id="btn-next-fish" class="btn btn-primary btn-glow">
+                다음 낚시 계속하기 <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 3. SUCCESS / CLEAR SCREEN ==================== -->
+    <section id="success-screen" class="screen">
+      <div class="result-content glass-panel animate-fade-in">
+        <div class="trophy-area">
+          <div class="crown-icon"><i class="fa-solid fa-crown"></i></div>
+          <i class="fa-solid fa-door-open success-icon"></i>
+        </div>
+        <h1 class="result-title text-glow-green">탈출 대성공!</h1>
+        <p class="result-subtitle">
+          훌륭한 아케이드 조종과 음악 수수께끼 풀이로 바다를 탈출하는 데 성공했습니다!
+        </p>
+
+        <!-- Final Performance Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">남은 시간</span>
+            <span id="final-time" class="stat-value number">42.5초</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">정답률 (정확도)</span>
+            <span id="final-accuracy" class="stat-value number">90%</span>
+          </div>
+          <div class="stat-card highlight-card">
+            <span class="stat-label">최종 스코어</span>
+            <span id="final-score" class="stat-value number neon-text-blue">12,450</span>
+          </div>
+        </div>
+
+        <!-- Leaderboard Submit Form -->
+        <div id="leaderboard-submit-form" class="leaderboard-form">
+          <h3><i class="fa-solid fa-pen-nib"></i> 명예의 전당 등록</h3>
+          <p>랭킹 대시보드에 이름을 기록하세요!</p>
+          <div class="form-row">
+            <input type="text" id="player-name" placeholder="닉네임 입력 (최대 8자)" maxlength="8">
+            <button id="btn-submit-score" class="btn btn-primary btn-glow">등록하기</button>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button class="btn btn-primary btn-retry">
+            <i class="fa-solid fa-rotate-right"></i> 다시 도전하기
+          </button>
+          <button class="btn btn-secondary btn-go-lobby">
+            <i class="fa-solid fa-house"></i> 메인화면으로
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 4. GAME OVER / FAILED SCREEN ==================== -->
+    <section id="failed-screen" class="screen">
+      <div class="result-content failed-panel glass-panel animate-fade-in">
+        <div class="failed-area">
+          <i class="fa-solid fa-circle-exclamation failed-icon"></i>
+        </div>
+        <h1 class="result-title text-glow-red">탈출 실패...</h1>
+        <p class="result-subtitle">
+          2분의 제한 시간이 초과되었습니다.<br>조금만 더 빠르고 기민하게 조종하여 재도전해 보세요!
+        </p>
+
+        <!-- Progress Summary -->
+        <div class="failed-summary-card">
+          <div class="summary-item">
+            <span>성공적으로 낚은 물고기</span>
+            <span id="failed-caught-count" class="number">7 / 10 마리</span>
+          </div>
+          <div class="summary-progress-bar">
+            <div id="failed-progress" style="width: 70%"></div>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button class="btn btn-primary btn-retry btn-glow">
+            <i class="fa-solid fa-rotate-right"></i> 다시 도전하기
+          </button>
+          <button class="btn btn-secondary btn-go-lobby">
+            <i class="fa-solid fa-house"></i> 메인화면으로
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 5. RANKING DASHBOARD MODAL ==================== -->
+    <div id="ranking-modal" class="modal-overlay hidden">
+      <div class="ranking-card glass-panel animate-zoom">
+        <div class="ranking-header">
+          <h2><i class="fa-solid fa-trophy text-gold"></i> 명예의 전당 (Top 10)</h2>
+          <button id="btn-close-rankings" class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div class="ranking-body">
+          <div class="table-container">
+            <table class="ranking-table">
+              <thead>
+                <tr>
+                  <th>순위</th>
+                  <th>이름</th>
+                  <th>점수</th>
+                  <th>남은 시간</th>
+                  <th>정답률</th>
+                  <th>날짜</th>
+                </tr>
+              </thead>
+              <tbody id="ranking-table-body">
+                <!-- Loaded dynamically -->
+                <tr>
+                  <td colspan="6" class="no-records">아직 등록된 기록이 없습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ranking-actions">
+            <button id="btn-reset-rankings" class="btn btn-danger-outline">
+              <i class="fa-solid fa-trash-can"></i> 랭킹 초기화
+            </button>
+            <button id="btn-close-rankings-bottom" class="btn btn-secondary">
+              닫기
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Custom JavaScript -->
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
